@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.7 2004/01/02 22:15:56 eric Exp $
+/* $Id: snow.c,v 1.8 2004/01/03 09:53:14 eric Exp $
  **********************************************************************
  * (C) 2003/2004 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -149,8 +149,8 @@ static tvobj tvarray [MAXNOFTVS];
 static uchar vdp23;
 static uint  textidx;
 static char **textptr;
-static uchar dpage=0;
-static uchar colormorph=TRUE;
+static uchar dpage;
+static uchar colormorph;
 
 /**********************************************************************
  * AUXILIARY ROUTINES                                                 *
@@ -245,6 +245,9 @@ static void init(void)
 	vdp23   = 0;
 	textidx = 0;
 	textptr = scrolltext;
+	dpage   = 0;
+	colormorph = TRUE;
+
 	srand(JIFFY);
 	setpg(dpage, 1-dpage);
 	enascr();
