@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.3 2003/12/30 18:07:25 eric Exp $
+/* $Id: snow.c,v 1.4 2003/12/30 23:50:52 eric Exp $
  **********************************************************************
  * (C) 2003 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -62,13 +62,14 @@ void DBG_out(uchar);
 
 typedef struct
 {
-//	unsigned char oldx[2];
+	unsigned char oldx[2];
 	unsigned char oldy[2];
 	unsigned char x;
 	unsigned char y; // in VRAM
 	unsigned char imx;
 	unsigned char imy; // on the source image page
-	char v;
+	char vx;
+	char vy;
 	char state; 
 } tvobj;
 
@@ -143,9 +144,7 @@ static void init(void)
 	uchar i;
 	char  filename[13];
 
-#ifdef DEBUG
-	DBG_mode((uchar)0x1F); /* single byte, decimal) */
-#endif
+	//DBG_mode((uchar)0x1F); /* single byte, decimal) */
 	
 	/* Initialize graphics */
 	ginit();
@@ -157,8 +156,11 @@ static void init(void)
 	
 	for(i = 0; i < MAXNOFTVS; i++) {
 		tvarray[i].state = ST_DEAD;
+		tvarray[i].x = FONT_W;
+		tvarray[i].vx = 0;
+		tvarray[i].vy = 0;
 	}
-	
+
 	for(i = 0; i < 16; i++)
 		setpal(i, palette[i]);
 
@@ -239,34 +241,10 @@ static void next_char()
 }
 
 /**********************************************************************
- * remove_tvs() - removes non-used TVs
- */
-static void remove_old_tvs()
-{
-	tvobj *tvp = tvarray;
-	uchar  i;
-	
-	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
-		if ((tvp->state != 0)                  &&     /* this TV is alive and  */
-			(tvp->y >= (uchar)(vdp23 + 212)) &&   /* in the invisible area */
-			(tvp->y <  (uchar)(vdp23 + 256 - TV_H))) {
-			cpyv2v_wrap(tvp->x, tvp->y, tvp->x + TV_W-1, tvp->y + TV_H-1, NOISE_PG,
-				   tvp->x, tvp->y, c_apage, TPSET);
-			cpyv2v_wrap(tvp->x, tvp->y, tvp->x + TV_W-1, tvp->y + TV_H-1, NOISE_PG,
-				   tvp->x, tvp->y, 1-c_apage, TPSET);
-		//	boxfill(tvp->x, tvp->y, tvp->x+TV_W-1, tvp->y+TV_H-1,13,PSET);
-			tvp->x=0;
-		}
-	}
-}
-
-/**********************************************************************
  * new_tv() - create a new tv
  */
 static void new_tv(void)
 {
-	static uchar lastx = 0;
-
 	tvobj *tvp = tvarray;
 	uchar  tvx = (rand() % 4) * TV_W;
 	uchar  tvy = (rand() % 2) * TV_H + TV_Y;
@@ -277,19 +255,15 @@ static void new_tv(void)
 			tvp->state = ST_ALIVE;
 			tvp->imx=tvx;
 			tvp->imy=tvy;
-			tvp->v = rand()%((SCROLL_SPD<<1)-1) - SCROLL_SPD + 1;
+			tvp->vy = (rand()%((SCROLL_SPD<<1)-1)) - SCROLL_SPD + 1;
+			tvp->vx = ((rand()%((SCROLL_SPD<<1)-1)) - SCROLL_SPD + 1)/2;
 	        tvp->y = vdp23 - TV_H;
 	        tvp->oldy[0] = tvp->y;
 	        tvp->oldy[1] = tvp->y;
-			tvp->x = rand() % (256 - (TV_W*3) - FONT_W);
+	        tvp->oldx[0] = tvp->x;
+	        tvp->oldx[1] = tvp->x;
+			tvp->x = rand() % (256 - TV_W - FONT_W);
 			tvp->x += FONT_W;
-			if(tvp->x >= (lastx-TV_W))
-				tvp->x += 2*TV_W;
-			lastx = tvp->x;
-//			cpyv2v(tvx, tvy,tvx + TV_W-1, tvy + TV_H-1, GRAFX_PG,
-//			   	tvp->x,tvp->y, c_apage, TPSET);
-//			cpyv2v(tvx, tvy,tvx + TV_W-1, tvy + TV_H-1, GRAFX_PG,
-//			   	tvp->x,tvp->y, 1-c_apage, TPSET);
 			break;
 		}
 	}
@@ -306,9 +280,21 @@ static void move_tvs(void)
 	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
 		if (tvp->state == ST_ALIVE) {
 			tvp->oldy[dpage]=tvp->y;
-			tvp->y+=tvp->v; // autowrap: uchars
+			tvp->y+=tvp->vy; // autowrap: uchars
+			tvp->oldx[dpage]=tvp->x;
+			tvp->x+=tvp->vx; // autowrap: uchars
+			if (tvp->x<FONT_W)
+			{
+				tvp->x=FONT_W;
+				tvp->vx=-tvp->vx;
+			} else if (tvp->x > (255-TV_W))
+			{
+				tvp->x=255-TV_W;
+				tvp->vx=-tvp->vx;
+			}
+		
 			if ( (tvp->y >= (uchar)(vdp23 + 212)) &&   /* in the invisible area */
-				(tvp->y <  (uchar)(vdp23 + 256 - TV_H))) 
+				(tvp->y <  (uchar)(vdp23 - TV_H - SCROLL_SPD))) 
 				{ tvp->state=ST_DYING; }
 		}
 	}
@@ -325,13 +311,15 @@ static void anim_tvs(void)
 	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
 		if (tvp->state != ST_DEAD) {
 			uint oldy = tvp->oldy[1-dpage];
-			cpyv2v_wrap(tvp->x, oldy, tvp->x+TV_W-1,  oldy+TV_H-1, NOISE_PG,
-						tvp->x, oldy, 1-dpage, PSET);
+			uint oldx = tvp->oldx[1-dpage];
+			cpyv2v_wrap(oldx, oldy, oldx+TV_W-1,  oldy+TV_H-1, NOISE_PG,
+						oldx, oldy, 1-dpage, PSET);
 			if (tvp->state == ST_DYING)
 			{
 				oldy = tvp->oldy[dpage];
-				cpyv2v_wrap(tvp->x, oldy, tvp->x+TV_W-1,  oldy+TV_H-1, NOISE_PG,
-						tvp->x, oldy, dpage, PSET);
+				oldx = tvp->oldx[dpage];
+				cpyv2v_wrap(oldx, oldy, oldx+TV_W-1,  oldy+TV_H-1, NOISE_PG,
+						    oldx, oldy, dpage, PSET);
 				tvp->state = ST_DEAD; // object is dead
 			}
 		}
@@ -339,8 +327,8 @@ static void anim_tvs(void)
 	tvp = tvarray;
 	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
 		if (tvp->state == ST_ALIVE) {
-			cpyv2v_wrap(tvp->imx,  tvp->imy, tvp->imx+TV_W-1, tvp->imy+TV_H-1, GRAFX_PG,
-						tvp->x,    tvp->y, 1-dpage, TPSET);
+			cpyv2v_wrap(tvp->imx, tvp->imy, tvp->imx+TV_W-1, tvp->imy+TV_H-1, GRAFX_PG,
+						tvp->x, tvp->y, 1-dpage, TPSET);
 		}
 	}
 }
