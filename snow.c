@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.2 2003/12/30 15:31:56 eric Exp $
+/* $Id: snow.c,v 1.3 2003/12/30 18:07:25 eric Exp $
  **********************************************************************
  * (C) 2003 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -47,19 +47,29 @@ void DBG_out(uchar);
 #define FONT_W   16
 #define FONT_H   12
 
-#define MAXNOFTVS 16
+#define MAXNOFTVS 8
 #define TV_H      32
 #define TV_W      32
 #define TV_Y      80
+
+#define SCROLL_SPD 4
+
+#define ST_DEAD 0
+#define ST_DYING 1
+#define ST_ALIVE 2
 
 /**********************************************************************/
 
 typedef struct
 {
-	unsigned char oldx[2];
+//	unsigned char oldx[2];
 	unsigned char oldy[2];
 	unsigned char x;
 	unsigned char y; // in VRAM
+	unsigned char imx;
+	unsigned char imy; // on the source image page
+	char v;
+	char state; 
 } tvobj;
 
 /**********************************************************************
@@ -105,16 +115,24 @@ static uchar dpage=0;
 void cpyv2v_wrap(uint sx1, uint sy1, uint sx2, uint sy2, uchar sp,
 						     uint dx,  uint dy, uchar dp, uchar logop)
 {
-	uint h1 = sy2 - sy1;
+	uint h = sy2 - sy1;
+	uint h1 = 255 - sy1;
+	uint h2;
+	dy &= 255; // afromen die handel!
+	h2 = 255 - dy;
+	
+	if (h1 > h ) h1=h;
+	if (h2 > h ) h2=h;
 
-	if((dy + h1) > 255) {
-		uint h = 255 - dy;
+	if (h2 < h1) { h2^=h1; h1^=h2; h2^=h1; } // swap h1, h2
 
-		cpyv2v(sx1, sy1,     sx2, sy1+h, sp, dx, dy, dp, logop);
-		cpyv2v(sx1, sy1+h+1, sx2, sy2,   sp, dx, 0,  dp, logop);
-	} else {
-		cpyv2v(sx1, sy1, sx2, sy2, sp, dx, dy, dp, logop);
-	}
+	cpyv2v(sx1, sy1, sx2, sy1+h1, sp, dx, dy, dp, logop);
+	
+	if ((h1!=h) && (h1!=h2)) 
+		cpyv2v(sx1, (sy1+h1+1) & 255, sx2, (sy1+h2) & 255, sp, dx, (dy+h1+1) & 255, dp, logop);
+	if (h2!=h)
+		cpyv2v(sx1, (sy1+h2+1) & 255, sx2, sy2 & 255, sp, dx, (dy+h2+1) & 255, dp, logop);
+
 }
 											 
 /**********************************************************************
@@ -138,8 +156,7 @@ static void init(void)
 	disscr();
 	
 	for(i = 0; i < MAXNOFTVS; i++) {
-		tvarray[i].x = 0;
-		tvarray[i].y = 0;
+		tvarray[i].state = ST_DEAD;
 	}
 	
 	for(i = 0; i < 16; i++)
@@ -152,7 +169,7 @@ static void init(void)
 	gs2loadgrp(5, GRAFX_PG, filename);
 	
 	/* hack to 'grey' the normally invisible area of the screen */
-	cpyv2v(0, 100, 255, 256-212+100, NOISE_PG, 0, 212, NOISE_PG, PSET);
+	cpyv2v(0, 100, 255, 255-212+100, NOISE_PG, 0, 212, NOISE_PG, PSET);
 	/* debug*/
 #if DEBUG
 	setpg(0,NOISE_PG);
@@ -230,11 +247,13 @@ static void remove_old_tvs()
 	uchar  i;
 	
 	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
-		if ((tvp->x != 0)                  &&     /* this TV is alive and  */
+		if ((tvp->state != 0)                  &&     /* this TV is alive and  */
 			(tvp->y >= (uchar)(vdp23 + 212)) &&   /* in the invisible area */
 			(tvp->y <  (uchar)(vdp23 + 256 - TV_H))) {
-			cpyv2v(tvp->x, tvp->y, tvp->x + TV_W-1, tvp->y + TV_H-1, NOISE_PG,
+			cpyv2v_wrap(tvp->x, tvp->y, tvp->x + TV_W-1, tvp->y + TV_H-1, NOISE_PG,
 				   tvp->x, tvp->y, c_apage, TPSET);
+			cpyv2v_wrap(tvp->x, tvp->y, tvp->x + TV_W-1, tvp->y + TV_H-1, NOISE_PG,
+				   tvp->x, tvp->y, 1-c_apage, TPSET);
 		//	boxfill(tvp->x, tvp->y, tvp->x+TV_W-1, tvp->y+TV_H-1,13,PSET);
 			tvp->x=0;
 		}
@@ -242,7 +261,7 @@ static void remove_old_tvs()
 }
 
 /**********************************************************************
- * create a new tv
+ * new_tv() - create a new tv
  */
 static void new_tv(void)
 {
@@ -254,18 +273,74 @@ static void new_tv(void)
 	uchar  i;
 
 	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
-		if (tvp->x == 0) {
+		if (tvp->state == ST_DEAD) {
+			tvp->state = ST_ALIVE;
+			tvp->imx=tvx;
+			tvp->imy=tvy;
+			tvp->v = rand()%((SCROLL_SPD<<1)-1) - SCROLL_SPD + 1;
 	        tvp->y = vdp23 - TV_H;
-			if(tvp->y <= (255 - TV_H)) {
-				tvp->x = rand() % (256 - (TV_W*3) - FONT_W);
-				tvp->x += FONT_W;
-				if(tvp->x >= (lastx-TV_W))
-					tvp->x += 2*TV_W;
-				lastx = tvp->x;
-				cpyv2v(tvx, tvy,tvx + TV_W-1, tvy + TV_H-1, GRAFX_PG,
-				   	tvp->x,tvp->y, c_apage, TPSET);
-				break;
+	        tvp->oldy[0] = tvp->y;
+	        tvp->oldy[1] = tvp->y;
+			tvp->x = rand() % (256 - (TV_W*3) - FONT_W);
+			tvp->x += FONT_W;
+			if(tvp->x >= (lastx-TV_W))
+				tvp->x += 2*TV_W;
+			lastx = tvp->x;
+//			cpyv2v(tvx, tvy,tvx + TV_W-1, tvy + TV_H-1, GRAFX_PG,
+//			   	tvp->x,tvp->y, c_apage, TPSET);
+//			cpyv2v(tvx, tvy,tvx + TV_W-1, tvy + TV_H-1, GRAFX_PG,
+//			   	tvp->x,tvp->y, 1-c_apage, TPSET);
+			break;
+		}
+	}
+}
+
+/**********************************************************************
+ * move_tvs() - Calc. new coordinates
+ */
+static void move_tvs(void)
+{
+	uchar  i;
+	tvobj *tvp = tvarray;
+
+	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
+		if (tvp->state == ST_ALIVE) {
+			tvp->oldy[dpage]=tvp->y;
+			tvp->y+=tvp->v; // autowrap: uchars
+			if ( (tvp->y >= (uchar)(vdp23 + 212)) &&   /* in the invisible area */
+				(tvp->y <  (uchar)(vdp23 + 256 - TV_H))) 
+				{ tvp->state=ST_DYING; }
+		}
+	}
+}
+
+/**********************************************************************
+ * anim_tvs() - Move them on the screen 
+ */
+static void anim_tvs(void)
+{
+	uchar  i;
+	tvobj *tvp = tvarray;
+
+	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
+		if (tvp->state != ST_DEAD) {
+			uint oldy = tvp->oldy[1-dpage];
+			cpyv2v_wrap(tvp->x, oldy, tvp->x+TV_W-1,  oldy+TV_H-1, NOISE_PG,
+						tvp->x, oldy, 1-dpage, PSET);
+			if (tvp->state == ST_DYING)
+			{
+				oldy = tvp->oldy[dpage];
+				cpyv2v_wrap(tvp->x, oldy, tvp->x+TV_W-1,  oldy+TV_H-1, NOISE_PG,
+						tvp->x, oldy, dpage, PSET);
+				tvp->state = ST_DEAD; // object is dead
 			}
+		}
+	}
+	tvp = tvarray;
+	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
+		if (tvp->state == ST_ALIVE) {
+			cpyv2v_wrap(tvp->imx,  tvp->imy, tvp->imx+TV_W-1, tvp->imy+TV_H-1, GRAFX_PG,
+						tvp->x,    tvp->y, 1-dpage, TPSET);
 		}
 	}
 }
@@ -276,7 +351,7 @@ static void new_tv(void)
 
 int main ()
 {
-	uchar charcnt = 0;
+	uchar charcnt = 0, i;
 	uchar clicksw = CLICKSW;
 
 	/* switch off key click */
@@ -286,14 +361,15 @@ int main ()
 	init();
 
 	do {
-		while(JIFFY<3)
+		while(JIFFY<2)
 			/* just wait */ ;
+		setpg(dpage, 1-dpage);
 		JIFFY=0;
 
 		loop_colors();
 		
-		vdp23 += 254;
-		charcnt += 2;
+		vdp23 -= SCROLL_SPD;
+		charcnt += SCROLL_SPD;
 		wrtvdp(23, vdp23);
 
 		if (charcnt >= FONT_H)
@@ -301,17 +377,25 @@ int main ()
 			next_char();
 			charcnt = 0;
 		}
-		remove_old_tvs();
-		if (!(vdp23 & ((TV_H)-1)))
+//		remove_old_tvs();
+//		if (!(vdp23 & ((TV_H)-1)))
 		{
 			new_tv();
 		}
+		move_tvs();
+		anim_tvs();
+		/* flip */
 		dpage=1-dpage;
-		setpg(dpage, 1-dpage);
 	}
-	while(1);
+	while(!kbhit());
 	kilbuf();
-	
+	wrtvdp(23, 0);
+	for (i=0; i<4; i++)	
+	{
+		setpg(i,i);
+		JIFFY=0;
+		while(JIFFY<100);
+	}	
 	sound(8,0);
 	screen(0);
 	CLICKSW=clicksw;
