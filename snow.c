@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.15 2004/01/05 21:34:00 eric Exp $
+/* $Id: snow.c,v 1.16 2004/01/05 22:08:08 eric Exp $
  **********************************************************************
  * (C) 2003/2004 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -258,7 +258,7 @@ static void init(void)
 	/* Snow sound ;-) */
 	sound(6, 13);   /* noise frequency           */
 	sound(7, 0xB7); /* 10.110.111 channel select */
-	/*sound(8, 10);*/   /* volume on channel 1       */
+	sound(8, 10);   /* volume on channel 1       */
 
 	/* hit it! */
 	vdp23   = 0;
