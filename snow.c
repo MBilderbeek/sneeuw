@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.10 2004/01/03 15:22:24 eric Exp $
+/* $Id: snow.c,v 1.11 2004/01/04 13:38:50 eric Exp $
  **********************************************************************
  * (C) 2003/2004 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -319,7 +319,7 @@ static void new_tv(void)
 {
 	tvobj *tvp = tvarray;
 	uchar  tvx = 0;
-	uchar  tvy = 3 * TV_H + TV_Y;
+	uchar  tvy = (rand() % 4) * TV_H + TV_Y;
 
 	uchar  i;
 
