@@ -4,7 +4,7 @@ CFLAGS=-O
 TARGET=snow
 LIBS=-lg
 EXTRAS=gs2.o
-OTHERFILES=snowbg2.sr5 tvs4.sr5
+OTHERFILES=snowbg2.sr5 tvs5.sr5
 DOSFILEPATH=~/Aurora/
 EMULATOR=openmsx -ext debugdevice 
 EMUDISK=-diska
@@ -39,7 +39,7 @@ $(TARGET): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $(TARGET).com $(OBJECTS) $(EXTRAS) $(LIBS) 
 
 clean:
-	rm -f $(TARGET).com $(OBJECTS) $(TARGET).dsk autoexec.bat
+	rm -f $(TARGET).as $(TARGET).com $(OBJECTS) $(TARGET).dsk autoexec.bat
 
 setpal.o: setpal.as
 debug.o: debug.as
