@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.1.1.1 2003/12/30 15:23:03 eric Exp $
+/* $Id: snow.c,v 1.2 2003/12/30 15:31:56 eric Exp $
  **********************************************************************
  * (C) 2003 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -56,6 +56,8 @@ void DBG_out(uchar);
 
 typedef struct
 {
+	unsigned char oldx[2];
+	unsigned char oldy[2];
 	unsigned char x;
 	unsigned char y; // in VRAM
 } tvobj;
@@ -91,11 +93,30 @@ static uint palette[] =
 static tvobj tvarray [MAXNOFTVS];
 static uchar vdp23,
              textidx;
+static uchar dpage=0;
 
 /**********************************************************************
  * AUXILIARY ROUTINES                                                 *
  **********************************************************************/
 
+/**********************************************************************
+ * cpyv2v_wrap() - better cpy
+ */
+void cpyv2v_wrap(uint sx1, uint sy1, uint sx2, uint sy2, uchar sp,
+						     uint dx,  uint dy, uchar dp, uchar logop)
+{
+	uint h1 = sy2 - sy1;
+
+	if((dy + h1) > 255) {
+		uint h = 255 - dy;
+
+		cpyv2v(sx1, sy1,     sx2, sy1+h, sp, dx, dy, dp, logop);
+		cpyv2v(sx1, sy1+h+1, sx2, sy2,   sp, dx, 0,  dp, logop);
+	} else {
+		cpyv2v(sx1, sy1, sx2, sy2, sp, dx, dy, dp, logop);
+	}
+}
+											 
 /**********************************************************************
  * init () - initalisation routine
  */
@@ -133,10 +154,12 @@ static void init(void)
 	/* hack to 'grey' the normally invisible area of the screen */
 	cpyv2v(0, 100, 255, 256-212+100, NOISE_PG, 0, 212, NOISE_PG, PSET);
 	/* debug*/
-//	setpg(0,NOISE_PG);
-//	boxfill(0,212,255,255,8,PSET);
-//	setpg(0,0);
-	/* end hack */
+#if DEBUG
+	setpg(0,NOISE_PG);
+	boxfill(0,212,255,255,8,PSET);
+	setpg(0,0);
+#endif
+	/* end debug/hack */
 	
 	/* Fill display pages with noise */
 	cpyv2v(0, 0, 255, 255, NOISE_PG, 0, 0, 0, PSET);
@@ -154,6 +177,7 @@ static void init(void)
 	vdp23   = 0;
 	textidx = 0;
 	srand(JIFFY);
+	setpg(dpage, 1-dpage);
 	enascr();
 }
 
@@ -188,9 +212,10 @@ static void next_char()
 	      sy = (FONT_Y + ((ch / FONT_CPL) * FONT_H));
 		  
 	/* copy background noise */
-	cpyv2v(0,   y,    FONT_W-1,  y + FONT_H-1, NOISE_PG, 0, y, c_apage, PSET);
-	cpyv2v(sx, sy, sx+FONT_W-1, sy + FONT_H-1, GRAFX_PG, 0, y, c_apage, TPSET);
-
+	cpyv2v_wrap(0,   y,    FONT_W-1,  y + FONT_H-1, NOISE_PG, 0, y, 1-c_apage, PSET);
+	cpyv2v_wrap(sx, sy, sx+FONT_W-1, sy + FONT_H-1, GRAFX_PG, 0, y, 1-c_apage, TPSET);
+	cpyv2v_wrap(0,   y,    FONT_W-1,  y + FONT_H-1, NOISE_PG, 0, y, c_apage, PSET);
+	cpyv2v_wrap(sx, sy, sx+FONT_W-1, sy + FONT_H-1, GRAFX_PG, 0, y, c_apage, TPSET);
 	textidx++;
 	if (scrolltext[textidx]=='\0')
 		textidx=0;
@@ -217,7 +242,7 @@ static void remove_old_tvs()
 }
 
 /**********************************************************************
- * CREATE A NEW TV
+ * create a new tv
  */
 static void new_tv(void)
 {
@@ -236,21 +261,9 @@ static void new_tv(void)
 				tvp->x += FONT_W;
 				if(tvp->x >= (lastx-TV_W))
 					tvp->x += 2*TV_W;
-#ifdef DEBUG
-				{
-					if(tvp->x > lastx)
-							DBG_out((uchar)(tvp->x - lastx));
-					else
-							DBG_out((uchar)(lastx - tvp->x));
-				}
-#endif
 				lastx = tvp->x;
 				cpyv2v(tvx, tvy,tvx + TV_W-1, tvy + TV_H-1, GRAFX_PG,
 				   	tvp->x,tvp->y, c_apage, TPSET);
-#ifdef DEBUG
-				while(JIFFY < 50)
-						;
-#endif
 				break;
 			}
 		}
@@ -263,6 +276,7 @@ static void new_tv(void)
 
 int main ()
 {
+	uchar charcnt = 0;
 	uchar clicksw = CLICKSW;
 
 	/* switch off key click */
@@ -278,18 +292,22 @@ int main ()
 
 		loop_colors();
 		
-		vdp23-=2;
+		vdp23 += 254;
+		charcnt += 2;
 		wrtvdp(23, vdp23);
 
-		if (!(vdp23 & 15))
+		if (charcnt >= FONT_H)
 		{
 			next_char();
+			charcnt = 0;
 		}
 		remove_old_tvs();
 		if (!(vdp23 & ((TV_H)-1)))
 		{
 			new_tv();
 		}
+		dpage=1-dpage;
+		setpg(dpage, 1-dpage);
 	}
 	while(1);
 	kilbuf();
