@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.14 2004/01/05 21:31:49 eric Exp $
+/* $Id: snow.c,v 1.15 2004/01/05 21:34:00 eric Exp $
  **********************************************************************
  * (C) 2003/2004 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -24,8 +24,8 @@
 int gs2loadgrp(uchar scrnmode, uchar page, char *filename);
 int kbhit();
 
-void DBG_mode(uchar);
-void DBG_out(uchar);
+//void DBG_mode(uchar);
+//void DBG_out(uchar);
 
 /**********************************************************************
  * DEFINITIONS                                                        *
@@ -211,7 +211,7 @@ static void init(void)
 	uchar i;
 	char  filename[13];
 
-	DBG_mode((uchar)0x1F); /* single byte, decimal) */
+	//DBG_mode((uchar)0x1F); /* single byte, decimal) */
 	
 	/* Initialize graphics */
 	ginit();
@@ -313,7 +313,6 @@ static void next_char()
 	uint  sx = ((ch % FONT_CPL) * FONT_W),
 	      sy = (FONT_Y + ((ch / FONT_CPL) * FONT_H));
 		 
-//	DBG_out(ch+32);
 	/* copy background noise and character on both pages */
 	cpyv2v_wrap(0,   y,    FONT_W-1,  y + FONT_H-1, NOISE_PG, 0, y, 0, PSET);
 	cpyv2v_wrap(sx, sy, sx+FONT_W-1, sy + FONT_H-1, GRAFX_PG, 0, y, 0, TPSET);
@@ -370,8 +369,8 @@ static void move_tvs(void)
 
 	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
 		if(tvp->state == ST_ALIVE) {
-			char animstep=(((tvp->y-vdp23+TV_H)&255)/27); // tv animation (27 == 212/#steps)
-			if (tvp->animrev) tvp->imx=7-animstep;
+			char animstep=(((tvp->y-vdp23+TV_H)&255)/28); // tv animation (28 == 212/#steps)
+			if (tvp->animrev) animstep=7-animstep;
 			tvp->imx=animstep*TV_W; 
 			tvp->oldx[dpage]=tvp->x;
 			tvp->x+=tvp->vx; // autowrap: uchars
