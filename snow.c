@@ -1,6 +1,6 @@
-/* $Id: snow.c,v 1.5 2003/12/31 00:59:04 eric Exp $
+/* $Id: snow.c,v 1.6 2004/01/02 16:43:23 eric Exp $
  **********************************************************************
- * (C) 2003 Copyright Aurora - M. Bilderbeek & E. Boon
+ * (C) 2003/2004 Copyright Aurora - M. Bilderbeek & E. Boon
  *
  * DESCRIPTION :
  *   Main program of the incredible snowTV demo
@@ -14,6 +14,8 @@
 #include "stdlib.h"
 #include "msxbios.h"
 #include "glib.h"
+#include "conio.h"
+#include "string.h"
 
 /**********************************************************************
  * EXTERNAL REFERENCES (Eventually, these should go into .h files!)   *
@@ -30,6 +32,9 @@ void DBG_out(uchar);
  **********************************************************************/
 
 //#define DEBUG  1
+
+#define TRUE 1
+#define FALSE (!(TRUE))
 
 #define SYSVAR(type,x) (*((type *)(x)))
 
@@ -106,7 +111,22 @@ static char* scrolltext[] = {
 	"          ",
 	"OK, now we're really out of scroll text... Let's loop it! ",
 	"          ",
+	"(This is } man!)",
+	"          ",
 	"{ | { | { | { | { | { | { | { "
+	"          ",
+	NULL
+	};
+
+static char* scrolltext2[] = {
+	" . . . . KRKGKRKG....  BEEP... #(@)*^#@$|\\)}][{]... kggrr..  ",
+	"This is the quasi-hidden scroll text, which you get when you press ",
+	"the 's'-key during this fabulous demo... Well, not much to see here, ",
+	"is there? Move along people...",
+	"                                    ",
+	"Time for the Dutch part...   ",
+	"Zeg, je wilde toch sneeuw zien vallen? Nou, hier heb je 't. ",
+	"Daaaaag!"
 	"          ",
 	NULL
 	};
@@ -145,6 +165,7 @@ static uchar vdp23;
 static uint  textidx;
 static char **textptr;
 static uchar dpage=0;
+static uchar colormorph=TRUE;
 
 /**********************************************************************
  * AUXILIARY ROUTINES                                                 *
@@ -264,12 +285,15 @@ static void loop_colors(void)
 	setpal(6, palette[((i + 2) % 3) + 4]);
 	i++;
 	i %= 3;
-	j++;
-	j %=14;
-	k=j;
-	if (j>7) k=14-j;
-	setpal(13, palette[16+k]);
-	setpal(14, palette[16+7-k]);
+	if (colormorph)
+	{
+		j++;
+		j %=14;
+		k=j;
+		if (j>7) k=14-j;
+		setpal(13, palette[16+k]);
+		setpal(14, palette[16+7-k]);
+	}
 }
 
 /**********************************************************************
@@ -405,37 +429,53 @@ int main ()
 {
 	uchar charcnt = 0;
 	uchar clicksw = CLICKSW;
+	uchar goon = 1;
+	int key;
 
 	/* switch off key click */
 	clicksw = CLICKSW;
 	CLICKSW = 0;
 
 	init();
-
 	do {
-		/* Flip pages */
-		dpage=1-dpage;
-		while(JIFFY<1)
-			; /* just wait */
-		setpg(dpage, 1-dpage);
-		JIFFY=0;
+		do {
+			/* Flip pages */
+			dpage=1-dpage;
+			while(JIFFY<1)
+				; /* just wait */
+			setpg(dpage, 1-dpage);
+			JIFFY=0;
+	
+			loop_colors();
+			
+			vdp23 -= SCROLL_SPD;
+			charcnt += SCROLL_SPD;
+			wrtvdp(23, vdp23);
 
-		loop_colors();
-		
-		vdp23 -= SCROLL_SPD;
-		charcnt += SCROLL_SPD;
-		wrtvdp(23, vdp23);
-
-		if(charcnt >= FONT_H)
-		{
-			next_char();
-			charcnt = 0;
+			if(charcnt >= FONT_H)
+			{
+				next_char();
+				charcnt = 0;
+			}
+			new_tv();
+			move_tvs();
+			draw_tvs();
 		}
-		new_tv();
-		move_tvs();
-		draw_tvs();
-	}
-	while(!kbhit());
+		while(!kbhit());
+		key=(getch()|32);
+		if (strchr("ms",key)) {
+			switch (key)
+			{
+				case 'm': colormorph=!colormorph;
+				break;
+				case 's': textptr=scrolltext2;
+					  textidx=0;
+				break;
+				default: break;
+			}
+		}
+		else { goon=0; }
+	} while (goon);
 	kilbuf();
 	wrtvdp(23, 0);
 	sound(8,0);
