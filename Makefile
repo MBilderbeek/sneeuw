@@ -4,8 +4,8 @@ CFLAGS=-O
 TARGET=snow
 LIBS=-lg
 EXTRAS=gs2.o
+DOSFILEPATH=~/Hi-Tech/
 OTHERFILES=snowbg2.sr5 tvs5.sr5
-DOSFILEPATH=~/Aurora/
 EMULATOR=openmsx -ext debugdevice 
 EMUDISK=-diska
 

@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.8 2004/01/03 09:53:14 eric Exp $
+/* $Id: snow.c,v 1.9 2004/01/03 09:58:44 eric Exp $
  **********************************************************************
  * (C) 2003/2004 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -101,6 +101,7 @@ static char* scrolltext[] = {
 	"| { Almost forgot: we wish all of you a great 2004 with lots of MSX fun! { | ",
 	"          ",
 	"Greetings to ... eh... everyone! { | { ",
+	"          ",
 	"Did you know this is Manuel's ",
 	"first real scroll text in his first real (!?) demo? Eric made tons ",
 	"(at least 2!) of them in the past, being a member of 4Trax... ",
@@ -112,6 +113,8 @@ static char* scrolltext[] = {
 	"OK, now we're really out of scroll text... Let's loop it! ",
 	"          ",
 	"(This is } man!)",
+	"          ",
+	"(Don't forget to find the quasi-hidden options..!)",
 	"          ",
 	"{ | { | { | { | { | { | { | { "
 	"          ",
@@ -157,7 +160,7 @@ static uchar colormorph;
  **********************************************************************/
 
 /**********************************************************************
- * cpyv2v_wrap() - better cpy
+ * cpyv2v_wrap() - better cpy, to cpy 'around' page borders
  */
 void cpyv2v_wrap(uint sx1, uint sy1, uint sx2, uint sy2, uchar sp,
                  uint dx,  uint dy, uchar dp, uchar logop)
@@ -315,8 +318,9 @@ static void next_char()
 static void new_tv(void)
 {
 	tvobj *tvp = tvarray;
-	uchar  tvx = (rand() % 4) * TV_W;
-	uchar  tvy = (rand() % 2) * TV_H + TV_Y;
+	uchar  tvx = 0;
+	uchar  tvy = (rand() % 4) * TV_H + TV_Y;
+
 	uchar  i;
 
 	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
@@ -351,6 +355,7 @@ static void move_tvs(void)
 		if(tvp->state == ST_ALIVE) {
 			tvp->oldx[dpage]=tvp->x;
 			tvp->x+=tvp->vx; // autowrap: uchars
+			tvp->imx=(7-((vdp23-tvp->y-TV_H)&255)>>5)*TV_W; // tv animation
 			if(tvp->x<FONT_W) {
 				tvp->x=FONT_W;
 				tvp->vx=-tvp->vx;
