@@ -1,4 +1,4 @@
-/* $Id: $
+/* $Id: snow.c,v 1.1.1.1 2003/12/30 15:23:03 eric Exp $
  **********************************************************************
  * (C) 2003 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -133,9 +133,9 @@ static void init(void)
 	/* hack to 'grey' the normally invisible area of the screen */
 	cpyv2v(0, 100, 255, 256-212+100, NOISE_PG, 0, 212, NOISE_PG, PSET);
 	/* debug*/
-	setpg(0,NOISE_PG);
-	boxfill(0,212,255,255,8,PSET);
-	setpg(0,0);
+//	setpg(0,NOISE_PG);
+//	boxfill(0,212,255,255,8,PSET);
+//	setpg(0,0);
 	/* end hack */
 	
 	/* Fill display pages with noise */
@@ -208,9 +208,9 @@ static void remove_old_tvs()
 		if ((tvp->x != 0)                  &&     /* this TV is alive and  */
 			(tvp->y >= (uchar)(vdp23 + 212)) &&   /* in the invisible area */
 			(tvp->y <  (uchar)(vdp23 + 256 - TV_H))) {
-			//cpyv2v(tvp->x, tvp->y, tvp->x + TV_W-1, tvp->y + TV_H-1, NOISE_PG,
-		//		   tvp->x, tvp->y, c_apage, TPSET);
-			boxfill(tvp->x, tvp->y, tvp->x+TV_W-1, tvp->y+TV_H-1,13,PSET);
+			cpyv2v(tvp->x, tvp->y, tvp->x + TV_W-1, tvp->y + TV_H-1, NOISE_PG,
+				   tvp->x, tvp->y, c_apage, TPSET);
+		//	boxfill(tvp->x, tvp->y, tvp->x+TV_W-1, tvp->y+TV_H-1,13,PSET);
 			tvp->x=0;
 		}
 	}
@@ -286,7 +286,7 @@ int main ()
 			next_char();
 		}
 		remove_old_tvs();
-		if (!(vdp23 & ((TV_H>>1)-1)))
+		if (!(vdp23 & ((TV_H)-1)))
 		{
 			new_tv();
 		}
