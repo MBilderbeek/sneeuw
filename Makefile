@@ -39,10 +39,13 @@ $(TARGET): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $(TARGET).com $(OBJECTS) $(EXTRAS) $(LIBS) 
 
 clean:
-	rm -f $(TARGET).as $(TARGET).com $(OBJECTS) $(TARGET).dsk autoexec.bat
+	rm -f palette.h $(TARGET).as $(TARGET).com $(OBJECTS) $(TARGET).dsk autoexec.bat
 
 setpal.o: setpal.as
 debug.o: debug.as
 
-$(TARGET).o: $(TARGET).c
+$(TARGET).o: $(TARGET).c palette.h
 
+palette.h: tvs5.pl5
+	gcc -o hulp/plX2h hulp/plX2h.c
+	hulp/plX2h $< $@

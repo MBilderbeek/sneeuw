@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.6 2004/01/02 16:43:23 eric Exp $
+/* $Id: snow.c,v 1.7 2004/01/02 22:15:56 eric Exp $
  **********************************************************************
  * (C) 2003/2004 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -33,8 +33,8 @@ void DBG_out(uchar);
 
 //#define DEBUG  1
 
-#define TRUE 1
-#define FALSE (!(TRUE))
+#define FALSE 0
+#define TRUE (!(FALSE))
 
 #define SYSVAR(type,x) (*((type *)(x)))
 
@@ -133,22 +133,7 @@ static char* scrolltext2[] = {
 
 static uint palette[] = 
 {	/*-GRB       */
-	0x0000, /* 0 */
-	0x0000, /* 1 */
-	0x0222, /* 2 */
-	0x0444, /* 3 */
-	0x0444, /* 4 */
-	0x0555, /* 5 */
-	0x0666, /* 6 */
-	0x0340, /* 7 */
-	0x0171, /* 8 */
-	0x0373, /* 9 */
-	0x0434, /*10 */
-	0x0000, /*11 */
-	0x0070, /*12 */
-	0x0557, /*13 */
-	0x0770, /*14 */
-	0x0777,  /*15 */
+#include <palette.h>
 
 	0x0557,
 	0x0556,
