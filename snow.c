@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.11 2004/01/04 13:38:50 eric Exp $
+/* $Id: snow.c,v 1.12 2004/01/04 17:43:36 eric Exp $
  **********************************************************************
  * (C) 2003/2004 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -106,9 +106,17 @@ static char* scrolltext[] = {
 	"first real scroll text in his first real (!?) demo? Eric made tons ",
 	"(at least 2!) of them in the past, being a member of 4Trax... ",
 	"          ",
+	"Small non-commercial break: check out http://openmsx.sf.net/ for ",
+	"the most complete open source MSX emulator available... {{{",
+	"          ",
 	"We don't guarantee that this little demo will work under DOS2 ",
 	"or other stuff... We didn't really have the time to test that all. ",
 	"So, if you have problems, use use a plain MSX2, will ya? { ",
+	"          ",
+	"Heh heh, Eric thinks the colours in this scroll are really ugly... ",
+	"but I like'em! Guess I have bad taste... The really nice font ",
+	"was designed by Eric himself, for screen 0 actually! We'll be ",
+	"using it again in the future! ",
 	"          ",
 	"OK, now we're really out of scroll text... Let's loop it! ",
 	"          ",
@@ -122,7 +130,7 @@ static char* scrolltext[] = {
 	};
 
 static char* scrolltext2[] = {
-	" . . . . KRKGKRKG....  BEEP... #(@)*^#@$|\\)}][{]... kggrr..  ",
+	" . . . . KRKGKRKG....  BEEP... <!%+#(@)>~*^#@$|\\)}][{]... kggrr..  ",
 	"This is the quasi-hidden scroll text, which you get when you press ",
 	"the 's'-key during this fabulous demo... Well, not much to see here, ",
 	"is there? Move along people...",
@@ -131,6 +139,13 @@ static char* scrolltext2[] = {
 	"Zeg, je wilde toch sneeuw zien vallen? Nou, hier heb je 't. ",
 	"Daaaaag!"
 	"          ",
+	"Geintje... De kredieten: \"Sneeuw\" is aan 't eind van 2003 ",
+	"en aan 't begin van 2004 ",
+	"gemaakt door Eric Boon & Manuel Bilderbeek, zijnde (deel van) ",
+	"Aurora. Je mag deze software schaamteloos dupliceren zonder ",
+	"enige beperkingen.",
+	"                  ",
+	
 	NULL
 	};
 
@@ -422,7 +437,7 @@ int main ()
 {
 	uchar charcnt = 0;
 	uchar clicksw = CLICKSW;
-	uchar goon = 1;
+	uchar goon = 1, loops=0, start=0;
 	int key;
 
 	/* switch off key click */
@@ -430,11 +445,14 @@ int main ()
 	CLICKSW = 0;
 
 	init();
+
+	// now the real stuff begins... 
+	
 	do {
 		do {
 			/* Flip pages */
 			dpage=1-dpage;
-			while(JIFFY<1)
+			while(JIFFY<4)
 				; /* just wait */
 			setpg(dpage, 1-dpage);
 			JIFFY=0;
@@ -445,14 +463,20 @@ int main ()
 			charcnt += SCROLL_SPD;
 			wrtvdp(23, vdp23);
 
-			if(charcnt >= FONT_H)
+			if (start)
 			{
-				next_char();
-				charcnt = 0;
+				if(charcnt >= FONT_H) // this doesn't work if FONT_H % SCROLL_SPD != 0
+				{
+					next_char();
+					charcnt = 0;
+				}
+				new_tv();
 			}
-			new_tv();
 			move_tvs();
 			draw_tvs();
+
+			if (loops==50) start=TRUE;
+			else loops++;
 		}
 		while(!kbhit());
 		key=(getch()|32);
