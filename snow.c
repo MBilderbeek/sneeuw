@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.13 2004/01/04 21:55:43 eric Exp $
+/* $Id: snow.c,v 1.14 2004/01/05 21:31:49 eric Exp $
  **********************************************************************
  * (C) 2003/2004 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -371,8 +371,8 @@ static void move_tvs(void)
 	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
 		if(tvp->state == ST_ALIVE) {
 			char animstep=(((tvp->y-vdp23+TV_H)&255)/27); // tv animation (27 == 212/#steps)
-			tvp->imx=animstep*TV_W; 
 			if (tvp->animrev) tvp->imx=7-animstep;
+			tvp->imx=animstep*TV_W; 
 			tvp->oldx[dpage]=tvp->x;
 			tvp->x+=tvp->vx; // autowrap: uchars
 			if(tvp->x<FONT_W) {
