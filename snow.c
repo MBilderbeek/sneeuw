@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.12 2004/01/04 17:43:36 eric Exp $
+/* $Id: snow.c,v 1.13 2004/01/04 21:55:43 eric Exp $
  **********************************************************************
  * (C) 2003/2004 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -77,6 +77,7 @@ typedef struct
 	char vx;
 	char vy;
 	char dvy;
+	unsigned char animrev; // 1=reverse
 	char state; 
 } tvobj;
 
@@ -353,6 +354,7 @@ static void new_tv(void)
 			tvp->vy = (rand()%((SCROLL_SPD<<1)-1)) - SCROLL_SPD + 1;
 			tvp->dvy = GRAVITY;
 			tvp->state = ST_ALIVE;
+			tvp->animrev = rand() & 1; // normal or reverse animation
 			break;
 		}
 	}
@@ -368,9 +370,11 @@ static void move_tvs(void)
 
 	for(i = 0; i < MAXNOFTVS; i++, tvp++) {
 		if(tvp->state == ST_ALIVE) {
+			char animstep=(((tvp->y-vdp23+TV_H)&255)/27); // tv animation (27 == 212/#steps)
+			tvp->imx=animstep*TV_W; 
+			if (tvp->animrev) tvp->imx=7-animstep;
 			tvp->oldx[dpage]=tvp->x;
 			tvp->x+=tvp->vx; // autowrap: uchars
-			tvp->imx=(((tvp->y-vdp23+TV_H)&255)/27)*TV_W; // tv animation (27 == 212/#steps)
 			if(tvp->x<FONT_W) {
 				tvp->x=FONT_W;
 				tvp->vx=-tvp->vx;
