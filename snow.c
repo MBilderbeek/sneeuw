@@ -1,4 +1,4 @@
-/* $Id: snow.c,v 1.9 2004/01/03 09:58:44 eric Exp $
+/* $Id: snow.c,v 1.10 2004/01/03 15:22:24 eric Exp $
  **********************************************************************
  * (C) 2003/2004 Copyright Aurora - M. Bilderbeek & E. Boon
  *
@@ -202,7 +202,7 @@ static void init(void)
 
 	color(15, 0, 0);
 	screen(5);
-	wrtvdp(8, 10);
+	wrtvdp(8, 10); // disable sprites
 	disscr();
 	
 	for(i = 0; i < MAXNOFTVS; i++) {
@@ -319,7 +319,7 @@ static void new_tv(void)
 {
 	tvobj *tvp = tvarray;
 	uchar  tvx = 0;
-	uchar  tvy = (rand() % 4) * TV_H + TV_Y;
+	uchar  tvy = 3 * TV_H + TV_Y;
 
 	uchar  i;
 
@@ -355,7 +355,7 @@ static void move_tvs(void)
 		if(tvp->state == ST_ALIVE) {
 			tvp->oldx[dpage]=tvp->x;
 			tvp->x+=tvp->vx; // autowrap: uchars
-			tvp->imx=(7-((vdp23-tvp->y-TV_H)&255)>>5)*TV_W; // tv animation
+			tvp->imx=(((tvp->y-vdp23+TV_H)&255)/27)*TV_W; // tv animation (27 == 212/#steps)
 			if(tvp->x<FONT_W) {
 				tvp->x=FONT_W;
 				tvp->vx=-tvp->vx;
